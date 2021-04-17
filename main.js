@@ -5,6 +5,7 @@ const qs = require('querystring');
 const template = require('./lib/template.js');
 const path = require('path');
 const style = require('./lib/style.js');
+const sanitizeHtml = require('sanitize-html');
 
 function file_Date(fileBirth, fileMtime){
   return `<p>작성일 : ${fileBirth.getFullYear()}년 ${fileBirth.getMonth()+1}월 ${fileBirth.getDate()}일 ${fileBirth.getHours()}시 ${fileBirth.getMinutes()}분</p>
@@ -37,17 +38,18 @@ const server = http.createServer(function(req, res) {
         const filteredId = path.parse(queryData.id).base;
         fs.stat(`./data/${queryData.id}`, function(err, stat){
           var fileBirth = stat.birthtime;
-          console.log(fileBirth);
           var fileMtime = stat.mtime;
           var _style = style.article();
+          var sanitizedTitle = sanitizeHtml(filteredId);
+          var sanitizedData = sanitizeHtml(data);
           var fileDate = file_Date(fileBirth, fileMtime);
-          var html = template.html(filteredId,
-            `<a href='/update?id=${filteredId}'>글 수정</a></div>
-            <div class="article"><h2>${filteredId}</h2>
+          var html = template.html(sanitizedTitle,
+            `<a href='/update?id=${sanitizedTitle}'>글 수정</a></div>
+            <div class="article"><h2>${sanitizedTitle}</h2>
             ${fileDate}
-            <p>${data}</p></div>`,
+            <p>${sanitizedData}</p></div>`,
             `<div class="bu_box"><form action='/delete_process' method='post'>
-            <input type='hidden' name='title' value='${filteredId}'>
+            <input type='hidden' name='title' value='${sanitizedTitle}'>
             <input type='submit' value='글 삭제'>
             </form>`, _style)
             res.writeHead(200);
