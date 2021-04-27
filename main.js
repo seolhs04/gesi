@@ -6,14 +6,22 @@ const template = require('./lib/template.js');
 const path = require('path');
 const style = require('./lib/style.js');
 const sanitizeHtml = require('sanitize-html');
+const file = require('./lib/file.js');
 const express = require('express');
+const bodyParser = require('body-parser');
+const compression = require('compression');
 
 const app = express();
 
-function file_Date(fileBirth, fileMtime){
-  return `<p>작성일 : ${fileBirth.getFullYear()}년 ${fileBirth.getMonth()+1}월 ${fileBirth.getDate()}일 ${fileBirth.getHours()}시 ${fileBirth.getMinutes()}분</p>
-  <p>최근 수정 : ${fileMtime.getFullYear()}년 ${fileMtime.getMonth()+1}월 ${fileMtime.getDate()}일 ${fileMtime.getHours()}시 ${fileMtime.getMinutes()}분</p>`
-}
+app.use(bodyParser.urlencoded({extended : false}));
+app.use(compression());
+app.use(express.static('public'));
+fs.exists('./data', function(exists){
+  if(exists == false){
+    console.log('data파일을 만듭니다')
+    fs.mkdirSync('./data');
+  }
+});
 
 app.get('/', function(req,res){
   const queryData = url.parse(req.url, true).query;
@@ -38,16 +46,27 @@ app.get('/topic/:dataId', function(req,res){
       var _style = style.article();
       var sanitizedTitle = sanitizeHtml(filteredId);
       var sanitizedData = sanitizeHtml(data);
-      var fileDate = file_Date(fileBirth, fileMtime);
+      var fileDate = file.date(fileBirth, fileMtime);
       var html = template.html(sanitizedTitle,
         `<a href='/update?id=${sanitizedTitle}'>글 수정</a></div>
         <div class="article"><h2>${sanitizedTitle}</h2>
         ${fileDate}
         <p>${sanitizedData}</p></div>`,
-        `<div class="bu_box"><form action='/delete_process' method='post'>
+        `<div class="bu_box"><form action='/delete_process' method='post' onsubmit='return delCheck()'>
         <input type='hidden' name='title' value='${sanitizedTitle}'>
         <input type='submit' value='글 삭제'>
-        </form>`, _style)
+        </form>
+        <script>
+        function delCheck(){
+          var con = confirm('게시물을 삭제하시겠습니까?')
+          if(con == true){
+            return true;
+          } else{
+            return false;
+          }
+        }
+        </script>
+        `, _style)
         res.send(html);
     });
   });
@@ -70,19 +89,13 @@ app.get('/create', function(req,res){
 });
 
 app.post('/create_process', function(req,res){
-  var body = '';
-  req.on('data', function(data) {
-    body += data;
-  });
-  req.on('end', function() {
-    var post = qs.parse(body);
+    var post = req.body;
     var title = post.title;
     var description = post.description;
     fs.writeFile(`./data/${title}`, description, 'utf8', function(err) {
       res.redirect(`/topic/${qs.escape(title)}`);
       res.send('success');
     });
-  });
 });
 
 app.get('/update', function(req,res){
@@ -107,12 +120,7 @@ app.get('/update', function(req,res){
 })
 
 app.post('/update_process', function(req,res){
-  var body = '';
-  req.on('data', function(data) {
-    body += data;
-  });
-  req.on('end', function() {
-    var post = qs.parse(body);
+    var post = req.body;
     var title = post.title;
     var new_title = post.new_title;
     var description = post.description;
@@ -122,48 +130,15 @@ app.post('/update_process', function(req,res){
         res.send('success');
       });
     });
-  });
 })
 
 app.post('/delete_process', function(req,res){
-  var body = '';
-  req.on('data', function(data) {
-    body += data;
-  });
-  req.on('end', function() {
-    var post = qs.parse(body);
+    var post = req.body;
     var title = post.title;
     const filteredId = path.parse(title).base;
     fs.unlink(`./data/${filteredId}`, function(err) {
       res.redirect(`/`);
     });
-  });
 })
 
 app.listen(2400);
-/*const server = http.createServer(function(req, res) {
-
-  if (pathname === '/') {
-    if (queryData.id === undefined && queryData.page === undefined) {
-
-    } else if(queryData.page !== undefined){
-
-    } else {
-
-  } else if (pathname === '/create') {
-
-  } else if (pathname === '/create_process') {
-
-  } else if (pathname === '/delete_process') {
-
-  } else if (pathname === '/update') {
-
-  } else if (pathname === '/update_process') {
-
-  } else {
-    res.writeHead(404);
-    res.end('Not found');
-  }
-});
-
-server.listen(2400);*/
